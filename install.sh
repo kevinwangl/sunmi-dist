@@ -212,13 +212,62 @@ if [ "$PI_GITSECRETS" = "true" ] && command -v git-secrets >/dev/null 2>&1; then
   fi
 fi
 
-# ---- 9) PATH 提示 ----
-case ":$PATH:" in
-  *":$INSTALL_DIR:"*) : ;;
-  *) say ""
-     say "提示：${INSTALL_DIR} 不在 PATH 中，请加入 shell 配置（如 ~/.zshrc）："
-     say "    export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
-esac
+# ---- 9) PATH：自动写入 shell 配置（幂等）----
+# 若 INSTALL_DIR 已在当前 PATH，则无需处理。
+# 否则把 export 行写入对应 shell 的 rc 文件（zsh/bash），用标记行保证幂等。
+ensure_on_path() {
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*) return 0 ;;   # 已在 PATH
+  esac
+
+  local line marker written=0
+  marker="# added by sunmi-dist install.sh (pc-security-check)"
+  # 用 $HOME 形式写入，避免把具体用户名写死
+  line="export PATH=\"\$HOME/.local/bin:\$PATH\"  ${marker}"
+
+  # 覆盖常见 shell 的 rc 文件：当前 shell 对应的 + 存在的其它
+  local rcs=()
+  case "${SHELL:-}" in
+    *zsh)  rcs+=("$HOME/.zshrc") ;;
+    *bash) rcs+=("$HOME/.bash_profile" "$HOME/.bashrc") ;;
+  esac
+  # 兜底：若上面没匹配到，按文件存在性补充
+  [ -f "$HOME/.zshrc" ] && rcs+=("$HOME/.zshrc")
+  [ -f "$HOME/.bash_profile" ] && rcs+=("$HOME/.bash_profile")
+  # 若一个都没有（全新环境），默认建 .zshrc（macOS 默认 zsh）
+  [ ${#rcs[@]} -eq 0 ] && rcs+=("$HOME/.zshrc")
+
+  # 去重后逐个写入（幂等：已有标记行则跳过）
+  local seen=" " f
+  for f in "${rcs[@]}"; do
+    case "$seen" in *" $f "*) continue ;; esac
+    seen="$seen$f "
+    if [ -f "$f" ] && grep -qF "$marker" "$f" 2>/dev/null; then
+      say "✓ PATH 已配置于 $f"
+      written=1
+      continue
+    fi
+    printf '\n%s\n' "$line" >> "$f"
+    say "✓ 已将 ~/.local/bin 写入 PATH：$f"
+    written=1
+  done
+
+  if [ "$written" -eq 1 ]; then
+    say "  → 请重开终端，或执行：source ${rcs[0]}"
+  fi
+}
+
+if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
+  ensure_on_path
+else
+  # 自定义安装目录：不擅自改用户 rc，仅提示
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*) : ;;
+    *) say ""
+       say "提示：${INSTALL_DIR} 不在 PATH 中，请手动加入 shell 配置："
+       say "    export PATH=\"${INSTALL_DIR}:\$PATH\"" ;;
+  esac
+fi
 
 say ""
 say "安装完成。运行 ${ASSET} 开始使用。"
