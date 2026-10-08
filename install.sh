@@ -171,7 +171,7 @@ ensure_brew() {
   fi
   if ! command -v brew >/dev/null 2>&1; then
     say "未检测到 Homebrew，正在安装（需联网，可能需要密码）..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/null \
       || { say "✗ Homebrew 安装失败，请手动安装后重试：https://brew.sh"; return 1; }
     for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
       [ -x "$b" ] && eval "$("$b" shellenv)" && break
@@ -187,7 +187,7 @@ if [ "$PI_HOMEBREW" = "true" ]; then
       say "✓ $tool 已安装"
     else
       say "↓ 安装 $tool ..."
-      if err="$(brew install "$tool" 2>&1)"; then
+      if err="$(brew install "$tool" </dev/null 2>&1)"; then
         say "✓ $tool 安装完成"
       else
         say "✗ $tool 安装失败（可手动重试：brew install $tool）"
@@ -195,6 +195,7 @@ if [ "$PI_HOMEBREW" = "true" ]; then
       fi
     fi
   done
+  hash -r 2>/dev/null || true   # 刷新命令哈希，确保后续能检测到刚装的工具
 fi
 
 if [ "$PI_GITSECRETS" = "true" ] && command -v git-secrets >/dev/null 2>&1; then
@@ -203,9 +204,9 @@ if [ "$PI_GITSECRETS" = "true" ] && command -v git-secrets >/dev/null 2>&1; then
   if [ -n "$CUR" ] && [ -f "${CUR/#\~/$HOME}/hooks/pre-commit" ]; then
     say "✓ git-secrets 全局模板已配置"
   else
-    git secrets --register-aws --global >/dev/null 2>&1 || true
-    git secrets --install "$TPL" -f >/dev/null 2>&1 || true
-    git config --global init.templateDir "$TPL" >/dev/null 2>&1 || true
+    git secrets --register-aws --global </dev/null >/dev/null 2>&1 || true
+    git secrets --install "$TPL" -f </dev/null >/dev/null 2>&1 || true
+    git config --global init.templateDir "$TPL" </dev/null >/dev/null 2>&1 || true
     [ -f "$TPL/hooks/pre-commit" ] \
       && say "✓ git-secrets 全局模板配置完成：$TPL" \
       || say "⚠️  git-secrets 模板配置未生效，请手动检查"
