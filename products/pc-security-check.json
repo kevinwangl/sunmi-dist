@@ -1,0 +1,12 @@
+{
+  "name": "pc-security-check",
+  "display_name": "个人 PC 季度安全自查工具",
+  "asset": "pc-security-check",
+  "install_dir": "~/.local/bin",
+  "post_install": {
+    "homebrew": true,
+    "brew_tools": ["gitleaks", "git-secrets", "semgrep"],
+    "git_secrets_template": true,
+    "strip_quarantine": true
+  }
+}
