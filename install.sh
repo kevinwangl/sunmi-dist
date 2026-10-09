@@ -19,6 +19,15 @@
 #
 set -uo pipefail
 
+# ---- 语言环境：强制 UTF-8 ----
+# 脚本内含中文全角标点（如 “）”）。在非 UTF-8 locale（LANG=C/POSIX）下，
+# 某些 bash 会把全角字符的首字节并入紧邻的 $变量名，导致形如
+# `tool�: unbound variable` 的崩溃（配合 set -u）。此处固定 UTF-8 以保证解析一致。
+if locale -a 2>/dev/null | grep -qiE '^(en_US\.UTF-8|C\.UTF-8|C\.utf8)$'; then
+  export LANG="${LANG:-en_US.UTF-8}"
+  export LC_ALL="en_US.UTF-8"
+fi
+
 # ---- 平台常量 ----
 GH_OWNER="kevinwangl"
 GH_REPO="sunmi-dist"
@@ -140,7 +149,7 @@ SHA_URL="${ART_URL}.sha256"
 
 say "↓ 下载 ${ASSET} ..."
 curl -fL --progress-bar "$ART_URL" -o "$TMP/$ASSET" \
-  || die "下载失败：$ART_URL（确认该 tag 的 Release 已发布且 asset 名正确）"
+  || die "下载失败：${ART_URL}（确认该 tag 的 Release 已发布且 asset 名正确）"
 
 # ---- 6) sha256 校验（有 .sha256 则强校验；无则告警继续）----
 if curl -fsSL "$SHA_URL" -o "$TMP/$ASSET.sha256" 2>/dev/null; then
@@ -190,7 +199,7 @@ if [ "$PI_HOMEBREW" = "true" ]; then
       if err="$(brew install "$tool" </dev/null 2>&1)"; then
         say "✓ $tool 安装完成"
       else
-        say "✗ $tool 安装失败（可手动重试：brew install $tool）"
+        say "✗ ${tool} 安装失败（可手动重试：brew install ${tool}）"
         printf '%s\n' "$err" | sed 's/^/    /'
       fi
     fi
